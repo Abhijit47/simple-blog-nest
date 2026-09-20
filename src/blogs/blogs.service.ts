@@ -1,75 +1,46 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Blog, CreateBlogDto, UpdateBlogDto } from './blogs.dto.interface';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateArticleDto, UpdateArticleDto } from './blogs.dto.interface';
 
 @Injectable()
 export class BlogsService {
-  private readonly blogs: Blog[] = [
-    {
-      id: '88ce5d32-30ab-44e3-a348-3c2757f86620',
-      title: 'First Blog',
-      content: 'This is the content of the first blog.',
-    },
-    {
-      id: 'a7400117-1ef7-4518-b64e-62b59207b3b0',
-      title: 'Second Blog',
-      content: 'This is the content of the second blog.',
-    },
-    {
-      id: 'd56ce189-b126-49a4-98d6-a03a210ab1b1',
-      title: 'Third Blog',
-      content: 'This is the content of the third blog.',
-    },
-  ];
+  constructor(private prisma: PrismaService) {}
 
-  private generateUniqueId(): string {
-    return crypto.randomUUID();
+  async findAll() {
+    return await this.prisma.article.findMany({ where: { published: true } });
   }
 
-  getBlogs(): Blog[] {
-    return this.blogs;
+  async findDrafts() {
+    return await this.prisma.article.findMany({ where: { published: false } });
   }
 
-  getBlogById(id: string): Blog {
-    const blog = this.blogs.find((blog) => blog.id === id);
-    if (!blog) {
-      throw new NotFoundException(`Blog with id #${id} not found`);
+  async findOne(id: string) {
+    const article = await this.prisma.article.findUnique({ where: { id } });
+    if (!article) {
+      throw new NotFoundException(`Article with id #${id} not found`);
     }
-    return blog;
+    return article;
   }
 
-  createBlog(createBlogDto: CreateBlogDto): Blog {
-    const { title, content } = createBlogDto;
-    const newBlog: Blog = {
-      id: this.generateUniqueId(),
-      title,
-      content,
-    };
-    this.blogs.push(newBlog);
-    return newBlog;
+  async create(createArticleDto: CreateArticleDto) {
+    return await this.prisma.article.create({ data: createArticleDto });
   }
 
-  updateBlog(id: string, updateBlogDto: UpdateBlogDto): Blog {
-    const { title, content } = updateBlogDto;
-
-    // find the blog by id this.getBlogById(id);
-    const blog = this.getBlogById(id);
-
-    if (title) {
-      blog.title = title;
+  async update(id: string, updateArticleDto: UpdateArticleDto) {
+    if (this.findOne(id) === null) {
+      throw new NotFoundException(`Article with id #${id} not found`);
     }
 
-    if (content) {
-      blog.content = content;
-    }
-
-    return blog;
+    return await this.prisma.article.update({
+      where: { id },
+      data: updateArticleDto,
+    });
   }
 
-  deleteBlog(id: string): void {
-    const blog = this.getBlogById(id);
-    const index = this.blogs.indexOf(blog);
-    if (index > -1) {
-      this.blogs.splice(index, 1);
+  async remove(id: string) {
+    if (this.findOne(id) === null) {
+      throw new NotFoundException(`Article with id #${id} not found`);
     }
+    return await this.prisma.article.delete({ where: { id } });
   }
 }
